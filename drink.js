@@ -10,10 +10,7 @@ function Card(suit, rank) {
 Card.prototype = {
   constructor: Card,
   numSuits: 4,
-  numRanks: 13,
-  testKarma: function(number) {
-    return number + 2;
-  }
+  numRanks: 13
 };
 
 //====================================================
@@ -123,8 +120,21 @@ function Player(name, deck, handLength) {
   this.checkDiscard();
 
   if (!Player.list) Player.list = [];
+  this.order = Player.list.length || 0;
   Player.list.push(this);
 }
+
+Player.getRandomPlayer = function() {
+  return Player.list[Math.floor(Math.random() * Player.list.length)];
+};
+
+Player.getPlayerAfter = function(player) {
+  if (player.order < Player.list.length - 1) {
+    return Player.list[player.order + 1];
+  } else {
+    return Player.list[0];
+  }
+};
 
 Player.prototype = {
   constructor: Player,
@@ -134,7 +144,7 @@ Player.prototype = {
     return this.hand.getCardByIndex(randomCardIndex).rank;
   },
 
-  drink: function(deck, cardRank) {
+  drawUntilRankFound: function(deck, cardRank) {
     if (deck.getLength === 0) return;
     var card;
     do {
@@ -157,6 +167,17 @@ Player.prototype = {
         });
       }
     }
+  },
+
+  getCardsFrom: function(givingPlayer, handIndices) {
+    //give cards from one player to another
+    var player = this;
+    var shift = 0; //as cards are removed from givingPlayer's hand, we need to adjust the index to match the new length
+    handIndices.forEach(function(cardNum) {
+      var card = givingPlayer.hand.removeCard(cardNum - shift);
+      player.hand.addCard(card);
+      shift++;
+    });
   }
 
 };
@@ -173,6 +194,7 @@ function Game() {
   this.deck.shuffle();
 
   for (var i = 0; i < Game.NUM_PLAYERS; i++) {
+    //we don't actually use this var, player instances are held in Player.list
     var player = new Player(i, this.deck, Game.STARTING_HAND_COUNT);
   }
 }
@@ -181,54 +203,28 @@ Game.prototype = {
   constructor: Game,
 
   play: function() {
-    var playerNum = this.chooseRandomPlayerNum();
     var winningPlayer;
+    var currentPlayer;
+    var otherPlayer;
     do {
-      var currentPlayer = Player.list[playerNum];
+      currentPlayer = otherPlayer || Player.getRandomPlayer();
       //otherPlayer is the player that currentPlayer takes cards from
-      var otherPlayerNum = this.getOtherPlayerNum(playerNum);
-      var otherPlayer = Player.list[otherPlayerNum];
+      otherPlayer = Player.getPlayerAfter(currentPlayer);
       var guess = currentPlayer.makeGuess();
       var matchingCardIndices = otherPlayer.hand.getCardsOfRank(guess);
 
       if (matchingCardIndices.length > 0) {
-        this.transferCards(currentPlayer, otherPlayer, matchingCardIndices);
+        currentPlayer.getCardsFrom(otherPlayer, matchingCardIndices);
       } else {
-        currentPlayer.drink(this.deck, guess);
+        currentPlayer.drawUntilRankFound(this.deck, guess);
       }
 
       currentPlayer.checkDiscard();
-      playerNum = otherPlayerNum;
       winningPlayer = this.findWinningPlayerNum([currentPlayer, otherPlayer]); //always check the currentPlayer first, in case they bottomed otherPlayer's hand
       //winningPlayer = true;
-    } while (!winningPlayer);
+    } while (winningPlayer === undefined);
 
     this.gameOver(winningPlayer);
-  },
-
-  chooseRandomPlayerNum: function() {
-    return Math.floor(Math.random() * Game.NUM_PLAYERS);
-  },
-
-  transferCards: function(takingPlayer, givingPlayer, cardNumArray) {
-    //give cards from one player to another
-    //cardNumArray is filled with the card indices of givingPlayer's hand to take
-    var shift = 0; //as cards are removed from givingPlayer's hand, we need to adjust the index to match the new length
-    cardNumArray.forEach(function(cardNum) {
-      var card = givingPlayer.hand.removeCard(cardNum - shift);
-      takingPlayer.hand.addCard(card);
-      shift++;
-    });
-  },
-
-  getOtherPlayerNum: function(playerNum) {
-    //get the number of the next player in order
-    //if there are no more players, the next player is the first player (i.e. the 0th)
-    if (playerNum < Player.list.length - 1) {
-      return playerNum + 1;
-    } else {
-      return 0;
-    }
   },
 
   findWinningPlayerNum: function(playerArray) {
@@ -249,7 +245,7 @@ Game.prototype = {
       for (var i = 0; i < playerArray.length; i++) {
         var handLength = playerArray[i].hand.getNumCards();
         if (handLength === 0) {
-          winningPlayerNum = playerArray[i].number;
+          winningPlayerNum = playerArray[i].order;
           break;
         }
       }
