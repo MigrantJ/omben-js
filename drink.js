@@ -58,8 +58,11 @@ Deck.prototype = {
 // Hand class
 //====================================================
 
-function Hand() {
+function Hand(deck, initLength) {
   this.cards = [];
+  for (var i = 0; i < initLength; i++) {
+    this.addCard(deck.deal());
+  }
 }
 
 Hand.prototype = {
@@ -114,20 +117,17 @@ Hand.prototype = {
 // Player class
 //====================================================
 
-function Player(number) {
-  this.hand = new Hand();
-  this.name = "Player";
-  this.number = number;
+function Player(name, deck, handLength) {
+  this.hand = new Hand(deck, handLength);
+  this.name = name;
+  this.checkDiscard();
+
+  if (!Player.list) Player.list = [];
+  Player.list.push(this);
 }
 
 Player.prototype = {
   constructor: Player,
-
-  setName: function(str) {
-    if (typeof str === "string") {
-      this.name = str;
-    }
-  },
 
   makeGuess: function() {
     var randomCardIndex = Math.floor(Math.random() * (this.hand.getNumCards() - 1));
@@ -146,20 +146,6 @@ Player.prototype = {
 
   checkDiscard: function() {
     //checks the player's hand for collections of 4 cards of identical rank and removes them if found
-
-    /*
-    var player = this; //for some reason, "this" does not persist inside the cardIndices loop
-    var cardIndicesByRank = this.hand.getCardIndicesByRank();
-    cardIndicesByRank.forEach(function(cardIndices) {
-      if (cardIndices.length === 4) {
-        var shift = 0;
-        cardIndices.forEach(function(index) {
-          player.hand.removeCard(index - shift);
-          shift++;
-        });
-      }
-    });
-    */
     var player = this;
     for (var i = 0; i < Card.prototype.numRanks; i++) {
       var cardsOfRank = player.hand.getCardsOfRank(i);
@@ -180,22 +166,14 @@ Player.prototype = {
 //====================================================
 
 function Game() {
-  this.NUM_PLAYERS = 2;
-  this.STARTING_HAND_COUNT = 5;
+  Game.NUM_PLAYERS = 2;
+  Game.STARTING_HAND_COUNT = 5;
 
   this.deck = new Deck();
   this.deck.shuffle();
 
-  //create the players and populate their hands
-  this.players = []; //the index in this array is the same as Player.number
-  for (var i = 0; i < this.NUM_PLAYERS; i++) {
-    var player = new Player(i);
-    for (var j = 0; j < this.STARTING_HAND_COUNT; j++) {
-      player.hand.addCard(this.deck.deal());
-    }
-    player.setName(i.toString());
-    player.checkDiscard(); //there is a small possibility the player could be dealt a four card match
-    this.players.push(player);
+  for (var i = 0; i < Game.NUM_PLAYERS; i++) {
+    var player = new Player(i, this.deck, Game.STARTING_HAND_COUNT);
   }
 }
 
@@ -204,12 +182,12 @@ Game.prototype = {
 
   play: function() {
     var playerNum = this.chooseRandomPlayerNum();
-    var winningPlayer = false;
+    var winningPlayer;
     do {
-      var currentPlayer = this.players[playerNum];
+      var currentPlayer = Player.list[playerNum];
       //otherPlayer is the player that currentPlayer takes cards from
       var otherPlayerNum = this.getOtherPlayerNum(playerNum);
-      var otherPlayer = this.players[otherPlayerNum];
+      var otherPlayer = Player.list[otherPlayerNum];
       var guess = currentPlayer.makeGuess();
       var matchingCardIndices = otherPlayer.hand.getCardsOfRank(guess);
 
@@ -223,13 +201,13 @@ Game.prototype = {
       playerNum = otherPlayerNum;
       winningPlayer = this.findWinningPlayerNum([currentPlayer, otherPlayer]); //always check the currentPlayer first, in case they bottomed otherPlayer's hand
       //winningPlayer = true;
-    } while (winningPlayer === false);
+    } while (!winningPlayer);
 
     this.gameOver(winningPlayer);
   },
 
   chooseRandomPlayerNum: function() {
-    return Math.floor(Math.random() * this.NUM_PLAYERS);
+    return Math.floor(Math.random() * Game.NUM_PLAYERS);
   },
 
   transferCards: function(takingPlayer, givingPlayer, cardNumArray) {
@@ -246,7 +224,7 @@ Game.prototype = {
   getOtherPlayerNum: function(playerNum) {
     //get the number of the next player in order
     //if there are no more players, the next player is the first player (i.e. the 0th)
-    if (playerNum < this.players.length - 1) {
+    if (playerNum < Player.list.length - 1) {
       return playerNum + 1;
     } else {
       return 0;
@@ -257,20 +235,17 @@ Game.prototype = {
     //a player who empties their hand wins.
     //if the deck is emptied, the player with the smallest hand wins.
     //If a winner is found, return their number
-    /*
+    var winningPlayerNum;
     if (this.deck.getLength() === 0) {
-      var winningPlayerNum;
       var smallestHandLength;
-      this.players.forEach(function(player, playerNum) {
+      Player.list.forEach(function(player, playerNum) {
         if (smallestHandLength === undefined || player.hand.getNumCards() < smallestHandLength) {
           winningPlayerNum = playerNum;
           smallestHandLength = player.hand.getNumCards();
         }
       });
       return winningPlayerNum;
-    } else { */
-      var winningPlayerNum = false;
-
+    } else {
       for (var i = 0; i < playerArray.length; i++) {
         var handLength = playerArray[i].hand.getNumCards();
         if (handLength === 0) {
@@ -279,12 +254,12 @@ Game.prototype = {
         }
       }
 
-    //}
+    }
     return winningPlayerNum;
   },
 
   gameOver: function(winningPlayer) {
-    console.log("Player " + this.players[winningPlayer].name + " is victorious!");
+    console.log("Player " + Player.list[winningPlayer].name + " is victorious!");
   }
 
 };
