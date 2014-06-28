@@ -5,6 +5,10 @@
 function Card(suit, rank) {
   this.suit = suit;
   this.rank = rank;
+
+  if (!Card.list) Card.list = [];
+  this.id = Card.list.length || 0;
+  Card.list.push(this);
 }
 
 Card.prototype = {
@@ -66,11 +70,32 @@ Hand.prototype = {
   constructor: Hand,
 
   addCard: function(card) {
+    if (card === undefined) {
+      console.log("this card is undefined");
+    }
     this.cards.push(card);
   },
 
   removeCard: function(indexNum) {
     return this.cards.splice(indexNum, 1)[0]; //splice actually returns an array, so just get the card at the first index
+  },
+
+  addCardsByID: function(ids) {
+    var hand = this;
+    ids.map(function(e){ hand.addCard(Card.list[e]); });
+  },
+
+  removeCardsByID: function(ids) {
+    //removes all cards from the hand with the passed ID number / contained in the passed array of ID numbers
+    this.cards = this.cards.filter(function(e) {
+      if (Array.isArray(ids)) {
+        return ids.indexOf(e.id) === -1;
+      } else if (typeof ids === 'number') {
+        return e.id !== ids;
+      } else {
+        return true;
+      }
+    });
   },
 
   getCardByIndex: function(index) {
@@ -79,14 +104,17 @@ Hand.prototype = {
 
   getCardsOfRank: function(rankNum) {
     //checks if a card of the given rank is in the hand
-    //returns an array of indices of matching cards
-    var cardIndices = [];
-    this.cards.forEach(function(card, index) {
+    //returns an array of ids of matching cards
+    var cardIDs = [];
+    this.cards.forEach(function(card) {
+      if (card === undefined) {
+        console.log("break here");
+      }
       if (card.rank === rankNum) {
-        cardIndices.push(index);
+        cardIDs.push(card.id);
       }
     });
-    return cardIndices;
+    return cardIDs;
   },
 
   getCardIndicesByRank: function() {
@@ -120,7 +148,7 @@ function Player(name, deck, handLength) {
   this.checkDiscard();
 
   if (!Player.list) Player.list = [];
-  this.order = Player.list.length || 0;
+  this.id = Player.list.length || 0;
   Player.list.push(this);
 }
 
@@ -129,8 +157,8 @@ Player.getRandomPlayer = function() {
 };
 
 Player.getPlayerAfter = function(player) {
-  if (player.order < Player.list.length - 1) {
-    return Player.list[player.order + 1];
+  if (player.id < Player.list.length - 1) {
+    return Player.list[player.id + 1];
   } else {
     return Player.list[0];
   }
@@ -156,30 +184,34 @@ Player.prototype = {
 
   checkDiscard: function() {
     //checks the player's hand for collections of 4 cards of identical rank and removes them if found
-    var player = this;
     for (var i = 0; i < Card.prototype.numRanks; i++) {
-      var cardsOfRank = player.hand.getCardsOfRank(i);
+      var cardsOfRank = this.hand.getCardsOfRank(i);
       if (cardsOfRank !== undefined && cardsOfRank.length === 4) {
-        var shift = 0;
-        cardsOfRank.forEach(function(index) {
-          player.hand.removeCard(index - shift);
-          shift++;
-        });
+        this.hand.removeCardsByID(cardsOfRank);
       }
     }
   },
 
-  getCardsFrom: function(givingPlayer, handIndices) {
+  getCardsFrom: function(givingPlayer, cardIDs) {
     //give cards from one player to another
-    var player = this;
-    var shift = 0; //as cards are removed from givingPlayer's hand, we need to adjust the index to match the new length
-    handIndices.forEach(function(cardNum) {
-      var card = givingPlayer.hand.removeCard(cardNum - shift);
-      player.hand.addCard(card);
-      shift++;
-    });
+    givingPlayer.hand.removeCardsByID(cardIDs);
+    this.hand.addCardsByID(cardIDs);
   }
 
+};
+
+function Output() {
+  //Singleton
+  if (!Output.instance) { Output.instance = this; }
+  return Output.instance;
+}
+
+Output.prototype = {
+  constructor:  Output,
+
+  gameBegin: function() {
+    console.log("Welcome to DrinkJS");
+  },
 };
 
 //====================================================
@@ -197,24 +229,31 @@ function Game() {
     //we don't actually use this var, player instances are held in Player.list
     var player = new Player(i, this.deck, Game.STARTING_HAND_COUNT);
   }
+
+  this.output = new Output();
 }
 
 Game.prototype = {
   constructor: Game,
 
   play: function() {
+    var currentPlayer, otherPlayer, winningPlayer;
+    /*
     var winningPlayer;
     var currentPlayer;
     var otherPlayer;
+    */
+    this.output.gameBegin();
     do {
+      //if this is the first turn, there is no other player. Get a random player to start the game instead.
       currentPlayer = otherPlayer || Player.getRandomPlayer();
       //otherPlayer is the player that currentPlayer takes cards from
       otherPlayer = Player.getPlayerAfter(currentPlayer);
       var guess = currentPlayer.makeGuess();
-      var matchingCardIndices = otherPlayer.hand.getCardsOfRank(guess);
+      var matchingCardIDs = otherPlayer.hand.getCardsOfRank(guess);
 
-      if (matchingCardIndices.length > 0) {
-        currentPlayer.getCardsFrom(otherPlayer, matchingCardIndices);
+      if (matchingCardIDs.length > 0) {
+        currentPlayer.getCardsFrom(otherPlayer, matchingCardIDs);
       } else {
         currentPlayer.drawUntilRankFound(this.deck, guess);
       }
@@ -245,7 +284,7 @@ Game.prototype = {
       for (var i = 0; i < playerArray.length; i++) {
         var handLength = playerArray[i].hand.getNumCards();
         if (handLength === 0) {
-          winningPlayerNum = playerArray[i].order;
+          winningPlayerNum = playerArray[i].id;
           break;
         }
       }
