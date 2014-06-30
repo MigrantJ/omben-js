@@ -117,21 +117,6 @@ Hand.prototype = {
     return cardIDs;
   },
 
-  getCardIndicesByRank: function() {
-    //returns an array of all unique ranks found in the hand and the card indices of that rank
-    //array keys are the ranks
-    //array values are arrays of the matching card indices
-    var cardIndicesByRank = [];
-    this.cards.forEach(function(card, index) {
-      if (cardIndicesByRank[card.rank] === undefined) {
-        cardIndicesByRank[card.rank] = [index];
-      } else {
-        cardIndicesByRank[card.rank].push(index);
-      }
-    });
-    return cardIndicesByRank;
-  },
-
   getNumCards: function() {
     return this.cards.length;
   }
@@ -169,7 +154,7 @@ Player.prototype = {
 
   makeGuess: function() {
     var randomCardIndex = Math.floor(Math.random() * (this.hand.getNumCards() - 1));
-    return this.hand.getCardByIndex(randomCardIndex).rank;
+    return this.hand.getCardByIndex(randomCardIndex);
   },
 
   drawUntilRankFound: function(deck, cardRank) {
@@ -206,12 +191,49 @@ function Output() {
   return Output.instance;
 }
 
+//Output.suitChars = ['♠','♣','♥','♦'];
+Output.rankStrs = ['Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'];
+Output.suitStrs = ['Spades','Clubs','Hearts','Poops'];
+
 Output.prototype = {
   constructor:  Output,
+
+  getRankStr: function(rankNum) {
+    return Output.rankStrs[rankNum];
+  },
+
+  getSuitStr: function(suitNum) {
+    return Output.suitStrs[suitNum];
+  },
 
   gameBegin: function() {
     console.log("Welcome to DrinkJS");
   },
+
+  turnBegin: function(playerName) {
+    console.log(playerName + "'s Turn!");
+  },
+
+  cardChoice: function(playerName, cardRank, cardSuit) {
+    console.log(playerName + " shows the " + this.getRankStr(cardRank) + " of " + this.getSuitStr(cardSuit));
+  },
+
+  giveCards: function(givingPlayer, takingPlayer, cards) {
+    var cardStr = "card string goes here";
+    console.log(givingPlayer + " gives " + takingPlayer + " " + cardStr);
+  },
+
+  playerHasNo: function(playerName, cardRank) {
+    console.log(playerName + " has no " + this.getRankStr(cardRank) + "s!");
+  },
+
+  playerDraws: function(playerName, cardRank, cardSuit) {
+    console.log(playerName + " draws the " + this.getRankStr(cardRank) + " of " + this.getSuitStr(cardSuit));
+  },
+
+  gameEnd: function() {
+
+  }
 };
 
 //====================================================
@@ -238,24 +260,23 @@ Game.prototype = {
 
   play: function() {
     var currentPlayer, otherPlayer, winningPlayer;
-    /*
-    var winningPlayer;
-    var currentPlayer;
-    var otherPlayer;
-    */
     this.output.gameBegin();
     do {
       //if this is the first turn, there is no other player. Get a random player to start the game instead.
       currentPlayer = otherPlayer || Player.getRandomPlayer();
+      this.output.turnBegin(currentPlayer.name);
       //otherPlayer is the player that currentPlayer takes cards from
       otherPlayer = Player.getPlayerAfter(currentPlayer);
-      var guess = currentPlayer.makeGuess();
-      var matchingCardIDs = otherPlayer.hand.getCardsOfRank(guess);
+      var guessedCard = currentPlayer.makeGuess();
+      this.output.cardChoice(currentPlayer.name, guessedCard.rank, guessedCard.suit);
+      var matchingCardIDs = otherPlayer.hand.getCardsOfRank(guessedCard.rank);
 
       if (matchingCardIDs.length > 0) {
         currentPlayer.getCardsFrom(otherPlayer, matchingCardIDs);
+        this.output.giveCards(otherPlayer.name, currentPlayer.name, matchingCardIDs);
       } else {
-        currentPlayer.drawUntilRankFound(this.deck, guess);
+        currentPlayer.drawUntilRankFound(this.deck, guessedCard.rank);
+        this.output.playerHasNo(otherPlayer.name, guessedCard.rank);
       }
 
       currentPlayer.checkDiscard();
@@ -294,7 +315,7 @@ Game.prototype = {
   },
 
   gameOver: function(winningPlayer) {
-    console.log("Player " + Player.list[winningPlayer].name + " is victorious!");
+    this.output.gameEnd();
   }
 
 };
