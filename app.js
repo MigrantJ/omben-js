@@ -15,6 +15,8 @@ app.config(function($routeProvider) {
 
 app.controller('HomeController', function($scope, $location) {
   $scope.go = function(path) {
+    var game = new Game([$scope.player1, $scope.player2]);
+    game.play();
     $location.path(path);
   }
 });

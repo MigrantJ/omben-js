@@ -252,7 +252,7 @@ Output.prototype = {
 // Game class
 //====================================================
 
-function Game() {
+function Game(nameArray) {
   Game.NUM_PLAYERS = 2;
   Game.STARTING_HAND_COUNT = 5;
 
@@ -260,7 +260,7 @@ function Game() {
   this.deck.shuffle();
 
   for (var i = 0; i < Game.NUM_PLAYERS; i++) {
-    new Player(i, this.deck, Game.STARTING_HAND_COUNT);
+    new Player(nameArray[i], this.deck, Game.STARTING_HAND_COUNT);
   }
 
   this.output = new Output();
@@ -331,5 +331,5 @@ Game.prototype = {
 // Game starts here
 //====================================================
 
-var game = new Game();
-game.play();
+//var game = new Game();
+//game.play();

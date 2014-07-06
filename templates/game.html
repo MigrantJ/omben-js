@@ -1,1 +1,8 @@
 <h1>Game</h1>
+<div>
+<h2>{{player1}}</h2>
+  <div ng-repeat="card in game.currentPlayer.hand.cards">
+    <button>{{card.rank}}</button>
+  </div>
+</div>
+<h2>{{player2}}</h2>
