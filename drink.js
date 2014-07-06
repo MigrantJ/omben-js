@@ -158,21 +158,25 @@ Player.prototype = {
   },
 
   drawUntilRankFound: function(deck, cardRank) {
+    var output = new Output();
     if (deck.getLength === 0) return;
     var card;
     do {
       card = deck.deal();
       if (card === undefined) break; //there are no more cards in the deck
       this.hand.addCard(card);
+      output.playerDraws(this.name, card.rank, card.suit);
     } while (card.rank !== cardRank);
   },
 
   checkDiscard: function() {
     //checks the player's hand for collections of 4 cards of identical rank and removes them if found
+    var output = new Output();
     for (var i = 0; i < Card.prototype.numRanks; i++) {
       var cardsOfRank = this.hand.getCardsOfRank(i);
       if (cardsOfRank !== undefined && cardsOfRank.length === 4) {
         this.hand.removeCardsByID(cardsOfRank);
+        output.playerDiscards(this.name, i);
       }
     }
   },
@@ -193,7 +197,7 @@ function Output() {
 
 //Output.suitChars = ['♠','♣','♥','♦'];
 Output.rankStrs = ['Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King'];
-Output.suitStrs = ['Spades','Clubs','Hearts','Poops'];
+Output.suitStrs = ['Spades','Clubs','Hearts','Diamonds'];
 
 Output.prototype = {
   constructor:  Output,
@@ -218,9 +222,13 @@ Output.prototype = {
     console.log(playerName + " shows the " + this.getRankStr(cardRank) + " of " + this.getSuitStr(cardSuit));
   },
 
-  giveCards: function(givingPlayer, takingPlayer, cards) {
-    var cardStr = "card string goes here";
-    console.log(givingPlayer + " gives " + takingPlayer + " " + cardStr);
+  giveCards: function(givingPlayer, takingPlayer, cardIDs) {
+    var o = this;
+    var cardStr = "";
+    cardIDs.map(function(e) {
+      cardStr += "\n\t" + o.getRankStr(Card.list[e].rank) + " of " + o.getSuitStr(Card.list[e].suit);
+    });
+    console.log(givingPlayer + " gives " + takingPlayer + " the following:" + cardStr);
   },
 
   playerHasNo: function(playerName, cardRank) {
@@ -231,8 +239,12 @@ Output.prototype = {
     console.log(playerName + " draws the " + this.getRankStr(cardRank) + " of " + this.getSuitStr(cardSuit));
   },
 
-  gameEnd: function() {
+  playerDiscards: function(playerName, cardRank) {
+    console.log(playerName + " discards four " + this.getRankStr(cardRank) + "s!");
+  },
 
+  gameEnd: function(winningPlayerName) {
+    console.log("Player " + winningPlayerName + " has won the game!!!!");
   }
 };
 
@@ -248,8 +260,7 @@ function Game() {
   this.deck.shuffle();
 
   for (var i = 0; i < Game.NUM_PLAYERS; i++) {
-    //we don't actually use this var, player instances are held in Player.list
-    var player = new Player(i, this.deck, Game.STARTING_HAND_COUNT);
+    new Player(i, this.deck, Game.STARTING_HAND_COUNT);
   }
 
   this.output = new Output();
@@ -275,8 +286,8 @@ Game.prototype = {
         currentPlayer.getCardsFrom(otherPlayer, matchingCardIDs);
         this.output.giveCards(otherPlayer.name, currentPlayer.name, matchingCardIDs);
       } else {
-        currentPlayer.drawUntilRankFound(this.deck, guessedCard.rank);
         this.output.playerHasNo(otherPlayer.name, guessedCard.rank);
+        currentPlayer.drawUntilRankFound(this.deck, guessedCard.rank);
       }
 
       currentPlayer.checkDiscard();
@@ -284,7 +295,7 @@ Game.prototype = {
       //winningPlayer = true;
     } while (winningPlayer === undefined);
 
-    this.gameOver(winningPlayer);
+    this.output.gameEnd(Player.list[winningPlayer].name);
   },
 
   findWinningPlayerNum: function(playerArray) {
@@ -312,10 +323,6 @@ Game.prototype = {
 
     }
     return winningPlayerNum;
-  },
-
-  gameOver: function(winningPlayer) {
-    this.output.gameEnd();
   }
 
 };

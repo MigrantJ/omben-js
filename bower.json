@@ -1,0 +1,22 @@
+{
+  "name": "DrinkJS",
+  "version": "0.0.0",
+  "homepage": "https://github.com/MigrantJ/omben-js",
+  "authors": [
+    "Jim Grant <jmgrant@playdom.com>"
+  ],
+  "description": "A card game",
+  "main": "index.html",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": "~1.2.18",
+    "angular-route": "~1.2.18"
+  }
+}
